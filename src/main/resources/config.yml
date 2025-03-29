@@ -1,0 +1,26 @@
+# KillStreak made by Jay Gamerz
+#SUBSCRIBE ;) -> https://www.youtube.com/@jaygamerz
+# This configuration allows you to fully customize the messages & behavior of the plugin.
+
+# Prefix for all messages sent by the plugin
+prefix: "&#cd34a8K&#c139aci&#b53db0l&#a942b4l&#9d46b8S&#914bbct&#854fc0r&#7953c4e&#6d58c8a&#615ccck >> "  # This appears before every message
+
+# Killstreak Messages
+# These messages are broadcasted when a player reaches a specific kill streak.
+# You can add or remove streak levels as needed.
+streak_messages:
+  "3": "&e%player% is on a 3 kill streak!"  # Broadcast when a player reaches 3 kills in a row
+  "5": "&c%player% is unstoppable with a 5 kill streak!"  # Broadcast at 5 kills
+  "10": "&4%player% is DOMINATING with a 10 kill streak!"  # Broadcast at 10 kills
+
+# Message when a player's kill streak is broken (when they die)
+streak_broken_message: "&c%player%'s kill streak of %streak% was broken!"
+
+# General messages used in the plugin
+messages:
+  no_permission: "&cYou don't have permission!"  # Sent when a player lacks permission for a command
+  player_only: "&cOnly players can use this command!"  # Sent when a non-player (console) tries to use a player-only command
+  player_not_found: "&cPlayer %player% not found!"  # Sent when trying to reset a kill streak of a non-existent player
+  config_reloaded: "&aConfig reloaded successfully!"  # Sent when an admin reloads the config
+  streak_reset: "&aReset %player%'s kill streak!"  # Sent when an admin resets a player's kill streak
+  usage: "&eUsage: /killstreak reload | /killstreak reset <player>"  # Shows correct usage for the command
