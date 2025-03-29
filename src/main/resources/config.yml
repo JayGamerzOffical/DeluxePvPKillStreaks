@@ -8,6 +8,7 @@ prefix: "&#cd34a8K&#c139aci&#b53db0l&#a942b4l&#9d46b8S&#914bbct&#854fc0r&#7953c4
 # Killstreak Messages
 # These messages are broadcasted when a player reaches a specific kill streak.
 # You can add or remove streak levels as needed.
+
 streak_messages:
   "3": "&e%player% is on a 3 kill streak!"  # Broadcast when a player reaches 3 kills in a row
   "5": "&c%player% is unstoppable with a 5 kill streak!"  # Broadcast at 5 kills
