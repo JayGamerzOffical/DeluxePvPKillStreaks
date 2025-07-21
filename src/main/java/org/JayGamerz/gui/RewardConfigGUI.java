@@ -35,7 +35,7 @@ public class RewardConfigGUI implements Listener {
     
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        // Placeholder for future GUI implementation.
+        // Placeholder for future GUI implementation
     }
     
     @EventHandler
