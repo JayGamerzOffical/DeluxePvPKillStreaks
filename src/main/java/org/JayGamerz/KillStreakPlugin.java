@@ -143,11 +143,25 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
         // Check if new announcement system is enabled
         if (this.config.getBoolean("streak_announcement.enabled", true)) {
             int everyNKills = this.config.getInt("streak_announcement.every_n_kills", 5);
-            
             if (newStreak % everyNKills == 0) {
                 String message = this.config.getString("streak_announcement.message", "&e%player% is on a %streak% kill streak!");
                 this.broadcastMessage(message.replace("%player%", killer.getName()).replace("%streak%", String.valueOf(newStreak)));
             }
+        } else {
+            // Use legacy system for backwards compatibility
+            if (this.config.getConfigurationSection("streak_messages") != null) {
+                for (String key : this.config.getConfigurationSection("streak_messages").getKeys(false)) {
+                    int milestone = Integer.parseInt(key);
+                    if (newStreak == milestone) {
+                        String message = this.config.getString("streak_messages." + key, "&6%player% reached a %streak% kill streak!");
+                        this.broadcastMessage(message.replace("%player%", killer.getName()).replace("%streak%", key));
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     // Show leaderboard using DecentHolograms
     public void showLeaderboard(Player player, boolean allTime) {
         org.bukkit.Location loc = player.getLocation().add(0, 2, 0);
@@ -179,20 +193,6 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
             createHolo.invoke(null, holoName + player.getUniqueId(), loc, lines);
         } catch (Exception e) {
             player.sendMessage(colorize("&cFailed to create leaderboard hologram: " + e.getMessage()));
-        }
-    }
-        } else {
-            // Use legacy system for backwards compatibility
-            if (this.config.getConfigurationSection("streak_messages") != null) {
-                for (String key : this.config.getConfigurationSection("streak_messages").getKeys(false)) {
-                    int milestone = Integer.parseInt(key);
-                    if (newStreak == milestone) {
-                        String message = this.config.getString("streak_messages." + key, "&6%player% reached a %streak% kill streak!");
-                        this.broadcastMessage(message.replace("%player%", killer.getName()).replace("%streak%", key));
-                        break;
-                    }
-                }
-            }
         }
     }
 
