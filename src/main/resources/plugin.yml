@@ -1,15 +1,20 @@
 name: KillStreakByJayGamerz
-version: '1.0'
+version: '3.0'
 main: org.JayGamerz.KillStreakPlugin
-api-version: '1.8.8'
+api-version: '1.21'
 prefix: KillStreakByJayGamerz
 authors: [ JAY GAMERZ ]
-description: A Minecraft plugin is made by Jay Gamerz
+description: A plugin to manage player killstreaks in Minecraft.
 website: https://www.youtube.com/@jaygamerz
+depend: [PlaceholderAPI]
 commands:
   killstreak:
     description: Manage killstreaks
-    usage: /killstreak reload | reset <player>
+    usage: /killstreak reload | reset <player> | gui
+    permission: killstreak.admin
+  killstreakgui:
+    description: Open reward configuration GUI
+    usage: /killstreakgui
     permission: killstreak.admin
 permissions:
   killstreak.reload:
@@ -18,3 +23,9 @@ permissions:
   killstreak.reset:
     description: Allows resetting a player's streak
     default: op
+  killstreak.admin:
+    description: Allows access to all killstreak commands
+    default: op
+    children:
+      killstreak.reload: true
+      killstreak.reset: true
