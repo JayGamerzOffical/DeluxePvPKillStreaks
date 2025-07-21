@@ -10,11 +10,27 @@ depend: [PlaceholderAPI]
 commands:
   killstreak:
     description: Manage killstreaks
-    usage: /killstreak reload | reset <player> | resetbest <player> | gui | leaderboard <current|alltime>
+    usage: /killstreak reload | reset <player> | resetbest <player> | gui | leaderboard <current|alltime> | placeholders
     permission: killstreak.admin
   killstreakgui:
     description: Open reward configuration GUI
     usage: /killstreakgui
+    permission: killstreak.admin
+  resetbest:
+    description: Reset a player's best killstreak
+    usage: /killstreak resetbest <player>
+    permission: killstreak.admin
+  gui:
+    description: Open the reward configuration GUI
+    usage: /killstreak gui
+    permission: killstreak.admin
+  leaderboard:
+    description: Show top 10 killstreaks (current/alltime)
+    usage: /killstreak leaderboard <current|alltime>
+    permission: killstreak.admin
+  placeholders:
+    description: List all available PlaceholderAPI placeholders
+    usage: /killstreak placeholders
     permission: killstreak.admin
 permissions:
   killstreak.reload:
