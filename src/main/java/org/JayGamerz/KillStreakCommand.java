@@ -93,6 +93,27 @@ public class KillStreakCommand implements CommandExecutor {
             return true;
         }
 
+        // Handle /killstreak leaderboard <type>
+        if (args.length == 2 && args[0].equalsIgnoreCase("leaderboard")) {
+            if (!(sender instanceof Player)) {
+                sender.sendMessage(this.getMessage("player_only"));
+                return true;
+            }
+            Player player = (Player) sender;
+            String type = args[1].toLowerCase();
+            if (type.equals("current")) {
+                plugin.showLeaderboard(player, false);
+                sender.sendMessage(this.getMessage("leaderboard_current"));
+                return true;
+            } else if (type.equals("alltime")) {
+                plugin.showLeaderboard(player, true);
+                sender.sendMessage(this.getMessage("leaderboard_alltime"));
+                return true;
+            } else {
+                sender.sendMessage(this.getMessage("leaderboard_usage"));
+                return true;
+            }
+        }
         sender.sendMessage(this.getMessage("usage"));
         return true;
     }

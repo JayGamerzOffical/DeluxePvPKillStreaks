@@ -148,6 +148,39 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
                 String message = this.config.getString("streak_announcement.message", "&e%player% is on a %streak% kill streak!");
                 this.broadcastMessage(message.replace("%player%", killer.getName()).replace("%streak%", String.valueOf(newStreak)));
             }
+    // Show leaderboard using DecentHolograms
+    public void showLeaderboard(Player player, boolean allTime) {
+        org.bukkit.Location loc = player.getLocation().add(0, 2, 0);
+        String holoName = allTime ? "killstreak_alltime" : "killstreak_current";
+        org.bukkit.plugin.Plugin dh = org.bukkit.Bukkit.getPluginManager().getPlugin("DecentHolograms");
+        if (dh == null) {
+            player.sendMessage(colorize("&cDecentHolograms plugin not found!"));
+            return;
+        }
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        lines.add(colorize("&e&lTop 10 " + (allTime ? "All-Time" : "Current") + " Killstreaks"));
+        java.util.List<java.util.Map.Entry<UUID, Integer>> entries;
+        if (allTime) {
+            entries = new java.util.ArrayList<>(bestKillStreaks.entrySet());
+        } else {
+            entries = new java.util.ArrayList<>(killStreaks.entrySet());
+        }
+        entries.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
+        int rank = 1;
+        for (java.util.Map.Entry<UUID, Integer> entry : entries) {
+            if (rank > 10) break;
+            org.bukkit.OfflinePlayer p = org.bukkit.Bukkit.getOfflinePlayer(entry.getKey());
+            lines.add(colorize("&6" + rank + ". &e" + p.getName() + " &7- &b" + entry.getValue()));
+            rank++;
+        }
+        try {
+            Class<?> dhApi = Class.forName("eu.decentsoftware.holograms.api.DHAPI");
+            java.lang.reflect.Method createHolo = dhApi.getMethod("createHologram", String.class, org.bukkit.Location.class, java.util.List.class);
+            createHolo.invoke(null, holoName + player.getUniqueId(), loc, lines);
+        } catch (Exception e) {
+            player.sendMessage(colorize("&cFailed to create leaderboard hologram: " + e.getMessage()));
+        }
+    }
         } else {
             // Use legacy system for backwards compatibility
             if (this.config.getConfigurationSection("streak_messages") != null) {
