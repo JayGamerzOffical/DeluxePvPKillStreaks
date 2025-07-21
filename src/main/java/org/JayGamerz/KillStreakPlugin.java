@@ -261,7 +261,8 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
             Class<?> dhApi = Class.forName("eu.decentsoftware.holograms.api.DHAPI");
             java.lang.reflect.Method getHologram = dhApi.getMethod("getHologram", String.class);
             java.lang.reflect.Method createHolo = dhApi.getMethod("createHologram", String.class, org.bukkit.Location.class, java.util.List.class);
-            java.lang.reflect.Method updateHolo = dhApi.getMethod("setHologramLines", Object.class, java.util.List.class);
+            Class<?> hologramClass = Class.forName("eu.decentsoftware.holograms.api.holograms.Hologram");
+            java.lang.reflect.Method updateHolo = dhApi.getMethod("setHologramLines", hologramClass, java.util.List.class);
             
             // Prepare hologram content
             java.util.List<String> lines = generateLeaderboardLines(allTime);
@@ -456,7 +457,8 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
             
             Class<?> dhApi = Class.forName("eu.decentsoftware.holograms.api.DHAPI");
             java.lang.reflect.Method getHologram = dhApi.getMethod("getHologram", String.class);
-            java.lang.reflect.Method updateHolo = dhApi.getMethod("setHologramLines", Object.class, java.util.List.class);
+            Class<?> hologramClass = Class.forName("eu.decentsoftware.holograms.api.holograms.Hologram");
+            java.lang.reflect.Method updateHolo = dhApi.getMethod("setHologramLines", hologramClass, java.util.List.class);
             
             int updated = 0;
             for (String holoName : serverLeaderboards.keySet()) {
