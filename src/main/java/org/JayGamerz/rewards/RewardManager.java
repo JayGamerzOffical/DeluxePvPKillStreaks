@@ -56,13 +56,34 @@ public class RewardManager {
     }
     
     private void executeReward(Player player, String rewardPath) {
+        if (player == null || !player.isOnline()) {
+            plugin.getLogger().warning("Attempted to execute reward for null or offline player");
+            return;
+        }
+        
         List<String> commands = plugin.getConfig().getStringList(rewardPath + ".commands");
         String message = plugin.getConfig().getString(rewardPath + ".message", "");
         
-        // Execute commands
+        // Execute commands with safety checks
         for (String command : commands) {
+            if (command == null || command.trim().isEmpty()) {
+                continue;
+            }
+            
+            // Basic command validation - prevent dangerous commands
+            String lowerCommand = command.toLowerCase();
+            if (lowerCommand.contains("stop") || lowerCommand.contains("shutdown") || 
+                lowerCommand.contains("reload") || lowerCommand.contains("restart")) {
+                plugin.getLogger().warning("Blocked potentially dangerous reward command: " + command);
+                continue;
+            }
+            
             String processedCommand = command.replace("%player%", player.getName());
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), processedCommand);
+            try {
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), processedCommand);
+            } catch (Exception e) {
+                plugin.getLogger().warning("Failed to execute reward command '" + processedCommand + "': " + e.getMessage());
+            }
         }
         
         // Send message

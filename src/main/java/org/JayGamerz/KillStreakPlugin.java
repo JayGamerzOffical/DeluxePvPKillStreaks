@@ -19,8 +19,16 @@ import org.JayGamerz.gui.RewardConfigGUI;
 import org.JayGamerz.database.DatabaseManager;
 
 public class KillStreakPlugin extends JavaPlugin implements Listener {
+    
+    // Constants for better maintainability
+    private static final int TICKS_PER_SECOND = 20;
+    private static final int MIN_LEADERBOARD_INTERVAL = 10; // seconds
+    private static final int DEFAULT_LEADERBOARD_INTERVAL = 30; // seconds
+    private static final int MIN_STREAK_FOR_ANNOUNCEMENT = 2;
+    
     private Map<UUID, Integer> killStreaks = new HashMap<>();
     private Map<UUID, Integer> bestKillStreaks = new HashMap<>();
+    private Map<UUID, String> activeHolograms = new HashMap<>(); // Track active holograms per player
     private File configFile;
     private FileConfiguration config;
     private RewardManager rewardManager;
@@ -35,6 +43,7 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
     public void onEnable() {
         this.saveDefaultConfig();
         this.loadConfig();
+        this.validateConfig();
         
         // Initialize database
         this.databaseManager = new DatabaseManager(this);
@@ -64,13 +73,21 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
         
         getLogger().info("KillStreak Plugin v3.0 enabled!");
         // Schedule leaderboard update task
-        int interval = this.getConfig().getInt("leaderboard_update_interval", 30);
-        leaderboardTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(this, this::updateLeaderboards, interval * 20, interval * 20);
+        int interval = this.getConfig().getInt("leaderboard_update_interval", DEFAULT_LEADERBOARD_INTERVAL);
+        leaderboardTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(
+            this, 
+            this::updateLeaderboards, 
+            interval * TICKS_PER_SECOND, 
+            interval * TICKS_PER_SECOND
+        );
     }
 
     public void onDisable() {
         this.killStreaks.clear();
         // Don't clear bestKillStreaks as they're now persistent in database
+        
+        // Cleanup any remaining holograms
+        cleanupAllHolograms();
         
         // Close database connection
         if (this.databaseManager != null) {
@@ -88,6 +105,36 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
         
         getLogger().info("KillStreak Plugin disabled!");
     }
+    
+    /**
+     * Cleanup all active holograms
+     */
+    private void cleanupAllHolograms() {
+        if (activeHolograms.isEmpty()) {
+            return;
+        }
+        
+        try {
+            org.bukkit.plugin.Plugin dh = org.bukkit.Bukkit.getPluginManager().getPlugin("DecentHolograms");
+            if (dh != null) {
+                Class<?> dhApi = Class.forName("eu.decentsoftware.holograms.api.DHAPI");
+                java.lang.reflect.Method removeHolo = dhApi.getMethod("removeHologram", String.class);
+                
+                for (String holoName : activeHolograms.values()) {
+                    try {
+                        removeHolo.invoke(null, holoName);
+                    } catch (Exception e) {
+                        getLogger().warning("Failed to cleanup hologram " + holoName + ": " + e.getMessage());
+                    }
+                }
+                getLogger().info("Cleaned up " + activeHolograms.size() + " holograms");
+            }
+        } catch (Exception e) {
+            getLogger().warning("Failed to cleanup holograms: " + e.getMessage());
+        } finally {
+            activeHolograms.clear();
+        }
+    }
 
     public void loadConfig() {
         this.configFile = new File(this.getDataFolder(), "config.yml");
@@ -96,6 +143,35 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
         }
 
         this.config = YamlConfiguration.loadConfiguration(this.configFile);
+    }
+    
+    /**
+     * Validates configuration values and sets defaults for invalid ones
+     */
+    private void validateConfig() {
+        boolean configChanged = false;
+        
+        // Validate leaderboard update interval
+        int interval = getConfig().getInt("leaderboard_update_interval", DEFAULT_LEADERBOARD_INTERVAL);
+        if (interval < MIN_LEADERBOARD_INTERVAL) {
+            getLogger().warning("leaderboard_update_interval too low (" + interval + "s), setting to minimum " + MIN_LEADERBOARD_INTERVAL + "s");
+            getConfig().set("leaderboard_update_interval", MIN_LEADERBOARD_INTERVAL);
+            configChanged = true;
+        }
+        
+        // Validate announcement interval
+        int everyNKills = getConfig().getInt("streak_announcement.every_n_kills", 5);
+        if (everyNKills < 1) {
+            getLogger().warning("streak_announcement.every_n_kills must be at least 1, setting to 5");
+            getConfig().set("streak_announcement.every_n_kills", 5);
+            configChanged = true;
+        }
+        
+        // Save config if changes were made
+        if (configChanged) {
+            saveConfigFile();
+            getLogger().info("Configuration auto-corrected and saved");
+        }
     }
 
     public void saveConfigFile() {
@@ -121,7 +197,7 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
             // Handle broken streak
             if (this.killStreaks.containsKey(deadID)) {
                 int brokenStreak = this.killStreaks.remove(deadID);
-                if (brokenStreak >= 2) {
+                if (brokenStreak >= MIN_STREAK_FOR_ANNOUNCEMENT) {
                     String breakMessage = this.config.getString("streak_broken_message", "&c%player%'s kill streak of %streak% has been broken!");
                     this.broadcastMessage(breakMessage.replace("%player%", dead.getName()).replace("%streak%", String.valueOf(brokenStreak)));
                 }
@@ -170,37 +246,68 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
         }
     }
 
-    // Show leaderboard using DecentHolograms
+    // Show leaderboard using DecentHolograms with proper cleanup
     public void showLeaderboard(Player player, boolean allTime) {
-        org.bukkit.Location loc = player.getLocation().add(0, 2, 0);
-        String holoName = allTime ? "killstreak_alltime" : "killstreak_current";
         org.bukkit.plugin.Plugin dh = org.bukkit.Bukkit.getPluginManager().getPlugin("DecentHolograms");
         if (dh == null) {
             player.sendMessage(colorize("&cDecentHolograms plugin not found!"));
             return;
         }
-        java.util.List<String> lines = new java.util.ArrayList<>();
-        lines.add(colorize("&e&lTop 10 " + (allTime ? "All-Time" : "Current") + " Killstreaks"));
-        java.util.List<java.util.Map.Entry<UUID, Integer>> entries;
-        if (allTime) {
-            entries = new java.util.ArrayList<>(bestKillStreaks.entrySet());
-        } else {
-            entries = new java.util.ArrayList<>(killStreaks.entrySet());
-        }
-        entries.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
-        int rank = 1;
-        for (java.util.Map.Entry<UUID, Integer> entry : entries) {
-            if (rank > 10) break;
-            org.bukkit.OfflinePlayer p = org.bukkit.Bukkit.getOfflinePlayer(entry.getKey());
-            lines.add(colorize("&6" + rank + ". &e" + p.getName() + " &7- &b" + entry.getValue()));
-            rank++;
-        }
+        
+        UUID playerUUID = player.getUniqueId();
+        String holoName = (allTime ? "killstreak_alltime_" : "killstreak_current_") + playerUUID;
+        
         try {
             Class<?> dhApi = Class.forName("eu.decentsoftware.holograms.api.DHAPI");
+            
+            // Remove existing hologram if it exists
+            if (activeHolograms.containsKey(playerUUID)) {
+                java.lang.reflect.Method removeHolo = dhApi.getMethod("removeHologram", String.class);
+                removeHolo.invoke(null, activeHolograms.get(playerUUID));
+            }
+            
+            // Create new hologram
+            org.bukkit.Location loc = player.getLocation().add(0, 2, 0);
+            java.util.List<String> lines = new java.util.ArrayList<>();
+            lines.add(colorize("&e&lTop 10 " + (allTime ? "All-Time" : "Current") + " Killstreaks"));
+            
+            java.util.List<java.util.Map.Entry<UUID, Integer>> entries;
+            if (allTime) {
+                entries = new java.util.ArrayList<>(bestKillStreaks.entrySet());
+            } else {
+                entries = new java.util.ArrayList<>(killStreaks.entrySet());
+            }
+            entries.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
+            
+            int rank = 1;
+            for (java.util.Map.Entry<UUID, Integer> entry : entries) {
+                if (rank > 10) break;
+                org.bukkit.OfflinePlayer p = org.bukkit.Bukkit.getOfflinePlayer(entry.getKey());
+                lines.add(colorize("&6" + rank + ". &e" + p.getName() + " &7- &b" + entry.getValue()));
+                rank++;
+            }
+            
+            // Create the hologram
             java.lang.reflect.Method createHolo = dhApi.getMethod("createHologram", String.class, org.bukkit.Location.class, java.util.List.class);
-            createHolo.invoke(null, holoName + player.getUniqueId(), loc, lines);
+            createHolo.invoke(null, holoName, loc, lines);
+            
+            // Track the active hologram
+            activeHolograms.put(playerUUID, holoName);
+            
+            // Schedule hologram cleanup after 10 seconds
+            Bukkit.getScheduler().runTaskLater(this, () -> {
+                try {
+                    java.lang.reflect.Method removeHolo = dhApi.getMethod("removeHologram", String.class);
+                    removeHolo.invoke(null, holoName);
+                    activeHolograms.remove(playerUUID);
+                } catch (Exception e) {
+                    getLogger().warning("Failed to cleanup hologram: " + e.getMessage());
+                }
+            }, 200L); // 10 seconds
+            
         } catch (Exception e) {
             player.sendMessage(colorize("&cFailed to create leaderboard hologram: " + e.getMessage()));
+            getLogger().warning("Hologram creation failed: " + e.getMessage());
         }
     }
 
@@ -291,9 +398,25 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
     public DatabaseManager getDatabaseManager() {
         return this.databaseManager;
     }
-    // Update all leaderboards (current and all-time) for all online players
-    for (Player player : Bukkit.getOnlinePlayers()) {
-        showLeaderboard(player, false);
-        showLeaderboard(player, true);
+    
+    // Method to update leaderboards only when there are actual changes
+    private void updateLeaderboards() {
+        // Only update if there are players online and killstreaks exist
+        if (Bukkit.getOnlinePlayers().isEmpty() || (killStreaks.isEmpty() && bestKillStreaks.isEmpty())) {
+            return;
+        }
+        
+        // Log the update for debugging (can be removed in production)
+        getLogger().fine("Updating leaderboards for " + Bukkit.getOnlinePlayers().size() + " online players");
+        
+        // Note: This now creates temporary holograms that auto-cleanup after 10 seconds
+        // Consider making this configurable or implementing a different display method
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            // Only show leaderboards if player has permission
+            if (player.hasPermission("killstreak.view")) {
+                showLeaderboard(player, false); // Current streaks
+                showLeaderboard(player, true);  // All-time best
+            }
+        }
     }
 }
