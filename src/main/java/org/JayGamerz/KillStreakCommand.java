@@ -52,6 +52,13 @@ public class KillStreakCommand implements CommandExecutor {
                 if (!sender.hasPermission("killstreak.admin")) {
                     sender.sendMessage(this.getMessage("no_permission"));
                     return true;
+        } else if (args.length == 1 && args[0].equalsIgnoreCase("placeholders")) {
+            sender.sendMessage("§eAvailable Placeholders:");
+            sender.sendMessage("§6%killstreak_current% §7- Current killstreak of the player");
+            sender.sendMessage("§6%killstreak_player_best% §7- Best (highest) killstreak achieved by the player");
+            sender.sendMessage("§6%killstreak_top_player% §7- Name of the player with the highest current killstreak");
+            sender.sendMessage("§6%killstreak_top_streak% §7- The highest current killstreak on the server");
+            return true;
                 }
                 
                 Player player = (Player) sender;
