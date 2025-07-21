@@ -43,6 +43,11 @@ public class KillStreakExpansion extends PlaceholderExpansion {
             return String.valueOf(plugin.getKillStreak(player));
         }
 
+        // %killstreak_player_best%
+        if (params.equals("player_best")) {
+            return String.valueOf(plugin.getBestKillStreak(player));
+        }
+
         // %killstreak_top_player%
         if (params.equals("top_player")) {
             return plugin.getTopPlayer();

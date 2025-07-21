@@ -16,14 +16,17 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.JayGamerz.rewards.RewardManager;
 import org.JayGamerz.gui.RewardConfigGUI;
+import org.JayGamerz.database.DatabaseManager;
 
 public class KillStreakPlugin extends JavaPlugin implements Listener {
     private Map<UUID, Integer> killStreaks = new HashMap<>();
+    private Map<UUID, Integer> bestKillStreaks = new HashMap<>();
     private File configFile;
     private FileConfiguration config;
     private RewardManager rewardManager;
     private RewardConfigGUI rewardGUI;
     private KillStreakExpansion placeholderExpansion;
+    private DatabaseManager databaseManager;
 
     public KillStreakPlugin() {
     }
@@ -31,6 +34,11 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
     public void onEnable() {
         this.saveDefaultConfig();
         this.loadConfig();
+        
+        // Initialize database
+        this.databaseManager = new DatabaseManager(this);
+        this.databaseManager.initialize();
+        this.databaseManager.loadBestKillStreaks();
         
         // Initialize managers
         this.rewardManager = new RewardManager(this);
@@ -58,6 +66,12 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
 
     public void onDisable() {
         this.killStreaks.clear();
+        // Don't clear bestKillStreaks as they're now persistent in database
+        
+        // Close database connection
+        if (this.databaseManager != null) {
+            this.databaseManager.closeConnection();
+        }
         
         // Unregister PlaceholderAPI expansion
         if (this.placeholderExpansion != null) {
@@ -109,6 +123,14 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
             this.killStreaks.put(killerID, this.killStreaks.getOrDefault(killerID, 0) + 1);
             int newStreak = this.killStreaks.get(killerID);
             
+            // Update best killstreak if current streak is higher
+            int currentBest = this.bestKillStreaks.getOrDefault(killerID, 0);
+            if (newStreak > currentBest) {
+                this.bestKillStreaks.put(killerID, newStreak);
+                // Save to database
+                this.databaseManager.updateBestKillStreak(killerID, killer.getName(), newStreak);
+            }
+            
             // Process rewards
             this.rewardManager.processKillRewards(killer, newStreak);
             
@@ -150,6 +172,8 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
 
     public void resetStreak(Player player) {
         this.killStreaks.remove(player.getUniqueId());
+        // Note: We don't reset the best killstreak as it's meant to be persistent
+        // If you want to reset the best killstreak too, you would need a separate method
     }
 
     public void reloadPluginConfig() {
@@ -160,6 +184,27 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
     // Methods for PlaceholderAPI expansion
     public int getKillStreak(Player player) {
         return this.killStreaks.getOrDefault(player.getUniqueId(), 0);
+    }
+    
+    public int getBestKillStreak(Player player) {
+        UUID playerUUID = player.getUniqueId();
+        // First check in-memory cache
+        if (this.bestKillStreaks.containsKey(playerUUID)) {
+            return this.bestKillStreaks.get(playerUUID);
+        }
+        
+        // If not in cache, load from database
+        int dbBestStreak = this.databaseManager.getBestKillStreak(playerUUID);
+        if (dbBestStreak > 0) {
+            this.bestKillStreaks.put(playerUUID, dbBestStreak);
+        }
+        
+        return dbBestStreak;
+    }
+    
+    // Method to set best killstreak (used by database manager)
+    public void setBestKillStreak(UUID playerUUID, int bestStreak) {
+        this.bestKillStreaks.put(playerUUID, bestStreak);
     }
     
     public String getTopPlayer() {
@@ -199,5 +244,10 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
     // Getter for the reward GUI
     public RewardConfigGUI getRewardGUI() {
         return this.rewardGUI;
+    }
+    
+    // Getter for the database manager
+    public DatabaseManager getDatabaseManager() {
+        return this.databaseManager;
     }
 }

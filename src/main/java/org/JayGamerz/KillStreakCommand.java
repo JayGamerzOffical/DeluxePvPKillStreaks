@@ -74,6 +74,23 @@ public class KillStreakCommand implements CommandExecutor {
             this.plugin.resetStreak(target);
             sender.sendMessage(this.getMessage("streak_reset").replace("%player%", target.getName()));
             return true;
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("resetbest")) {
+            if (!sender.hasPermission("killstreak.admin")) {
+                sender.sendMessage(this.getMessage("no_permission"));
+                return true;
+            }
+
+            Player target = this.plugin.getServer().getPlayer(args[1]);
+            if (target == null) {
+                sender.sendMessage(this.getMessage("player_not_found").replace("%player%", args[1]));
+                return true;
+            }
+
+            // Reset best killstreak in memory and database
+            this.plugin.setBestKillStreak(target.getUniqueId(), 0);
+            this.plugin.getDatabaseManager().updateBestKillStreak(target.getUniqueId(), target.getName(), 0);
+            sender.sendMessage(plugin.colorize(plugin.getPrefix() + "&aReset " + target.getName() + "'s best killstreak!"));
+            return true;
         }
 
         sender.sendMessage(this.getMessage("usage"));

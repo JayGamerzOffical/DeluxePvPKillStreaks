@@ -2,6 +2,15 @@
 #SUBSCRIBE ;) -> https://www.youtube.com/@jaygamerz
 # This configuration allows you to fully customize the messages & behavior of the plugin.
 
+# Available PlaceholderAPI placeholders:
+# %killstreak_current% - Current killstreak of the player
+# %killstreak_player_best% - Best (highest) killstreak achieved by the player (persistent across restarts)
+# %killstreak_top_player% - Name of the player with the highest current killstreak
+# %killstreak_top_streak% - The highest current killstreak on the server
+
+# Note: Best killstreaks are automatically saved to a SQLite database (killstreaks.db)
+# and will persist across server restarts. Current killstreaks are reset on restart.
+
 # Prefix for all messages sent by the plugin
 prefix: "&#cd34a8K&#c139aci&#b53db0l&#a942b4l&#9d46b8S&#914bbct&#854fc0r&#7953c4e&#6d58c8a&#615ccck >> "  # This appears before every message
 
@@ -68,5 +77,5 @@ messages:
   player_not_found: "&cPlayer %player% not found!"
   config_reloaded: "&aConfig reloaded successfully!"
   streak_reset: "&aReset %player%'s kill streak!"
-  usage: "&eUsage: /killstreak reload | /killstreak reset <player> | /killstreak gui"
+  usage: "&eUsage: /killstreak reload | /killstreak reset <player> | /killstreak resetbest <player> | /killstreak gui"
   gui_opened: "&aOpened reward configuration GUI!"
