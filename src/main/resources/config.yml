@@ -20,6 +20,9 @@ streak_announcement:
   every_n_kills: 5  # Announce every 5 kills (5, 10, 15, etc.)
   message: "&e%player% is on a %streak% kill streak!"
 
+# Leaderboard update interval (seconds)
+leaderboard_update_interval: 30
+
 # Message when a player's kill streak is broken (when they die)
 streak_broken_message: "&c%player%'s kill streak of %streak% was broken!"
 
@@ -77,5 +80,9 @@ messages:
   player_not_found: "&cPlayer %player% not found!"
   config_reloaded: "&aConfig reloaded successfully!"
   streak_reset: "&aReset %player%'s kill streak!"
-  usage: "&eUsage: /killstreak reload | /killstreak reset <player> | /killstreak resetbest <player> | /killstreak gui"
+  usage: "&eUsage: /killstreak reload | /killstreak reset <player> | /killstreak resetbest <player> | /killstreak gui | /killstreak leaderboard <current|alltime> | /killstreak placeholders"
   gui_opened: "&aOpened reward configuration GUI!"
+  leaderboard_current: "&aShowing current top 10 killstreaks!"
+  leaderboard_alltime: "&aShowing all-time top 10 killstreaks!"
+  leaderboard_usage: "&eUsage: /killstreak leaderboard <current|alltime>"
+  placeholders_list: "&aAvailable Placeholders: %killstreak_current%, %killstreak_player_best%, %killstreak_top_player%, %killstreak_top_streak%"

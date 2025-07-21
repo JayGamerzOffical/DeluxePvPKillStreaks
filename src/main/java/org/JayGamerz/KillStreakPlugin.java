@@ -27,6 +27,7 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
     private RewardConfigGUI rewardGUI;
     private KillStreakExpansion placeholderExpansion;
     private DatabaseManager databaseManager;
+    private int leaderboardTaskId = -1;
 
     public KillStreakPlugin() {
     }
@@ -62,6 +63,9 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
         }
         
         getLogger().info("KillStreak Plugin v3.0 enabled!");
+        // Schedule leaderboard update task
+        int interval = this.getConfig().getInt("leaderboard_update_interval", 30);
+        leaderboardTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(this, this::updateLeaderboards, interval * 20, interval * 20);
     }
 
     public void onDisable() {
@@ -76,6 +80,10 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
         // Unregister PlaceholderAPI expansion
         if (this.placeholderExpansion != null) {
             this.placeholderExpansion.unregister();
+        }
+        // Cancel leaderboard update task
+        if (leaderboardTaskId != -1) {
+            Bukkit.getScheduler().cancelTask(leaderboardTaskId);
         }
         
         getLogger().info("KillStreak Plugin disabled!");
@@ -282,5 +290,10 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
     // Getter for the database manager
     public DatabaseManager getDatabaseManager() {
         return this.databaseManager;
+    }
+    // Update all leaderboards (current and all-time) for all online players
+    for (Player player : Bukkit.getOnlinePlayers()) {
+        showLeaderboard(player, false);
+        showLeaderboard(player, true);
     }
 }
