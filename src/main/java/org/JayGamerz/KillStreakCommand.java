@@ -121,6 +121,19 @@ public class KillStreakCommand implements CommandExecutor {
                 return true;
             }
         }
+        
+        // Handle /killstreak removeboards
+        if (args.length == 1 && args[0].equalsIgnoreCase("removeboards")) {
+            if (!sender.hasPermission("killstreak.admin")) {
+                sender.sendMessage(this.getMessage("no_permission"));
+                return true;
+            }
+            
+            plugin.removeAllLeaderboards();
+            sender.sendMessage(plugin.colorize(plugin.getPrefix() + "&aAll leaderboard holograms have been removed!"));
+            return true;
+        }
+        
         sender.sendMessage(this.getMessage("usage"));
         return true;
     }

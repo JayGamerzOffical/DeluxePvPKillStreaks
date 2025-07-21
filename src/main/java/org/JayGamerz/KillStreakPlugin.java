@@ -28,7 +28,7 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
     
     private Map<UUID, Integer> killStreaks = new HashMap<>();
     private Map<UUID, Integer> bestKillStreaks = new HashMap<>();
-    private Map<UUID, String> activeHolograms = new HashMap<>(); // Track active holograms per player
+    private Map<String, org.bukkit.Location> serverLeaderboards = new HashMap<>(); // Track server-wide leaderboards by name and location
     private File configFile;
     private FileConfiguration config;
     private RewardManager rewardManager;
@@ -107,10 +107,10 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
     }
     
     /**
-     * Cleanup all active holograms
+     * Cleanup all server leaderboard holograms
      */
     private void cleanupAllHolograms() {
-        if (activeHolograms.isEmpty()) {
+        if (serverLeaderboards.isEmpty()) {
             return;
         }
         
@@ -120,19 +120,19 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
                 Class<?> dhApi = Class.forName("eu.decentsoftware.holograms.api.DHAPI");
                 java.lang.reflect.Method removeHolo = dhApi.getMethod("removeHologram", String.class);
                 
-                for (String holoName : activeHolograms.values()) {
+                for (String holoName : serverLeaderboards.keySet()) {
                     try {
                         removeHolo.invoke(null, holoName);
                     } catch (Exception e) {
                         getLogger().warning("Failed to cleanup hologram " + holoName + ": " + e.getMessage());
                     }
                 }
-                getLogger().info("Cleaned up " + activeHolograms.size() + " holograms");
+                getLogger().info("Cleaned up " + serverLeaderboards.size() + " server leaderboard holograms");
             }
         } catch (Exception e) {
             getLogger().warning("Failed to cleanup holograms: " + e.getMessage());
         } finally {
-            activeHolograms.clear();
+            serverLeaderboards.clear();
         }
     }
 
@@ -246,7 +246,7 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
         }
     }
 
-    // Show leaderboard using DecentHolograms with proper cleanup
+    // Show leaderboard using DecentHolograms with persistent display
     public void showLeaderboard(Player player, boolean allTime) {
         org.bukkit.plugin.Plugin dh = org.bukkit.Bukkit.getPluginManager().getPlugin("DecentHolograms");
         if (dh == null) {
@@ -259,55 +259,97 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
         
         try {
             Class<?> dhApi = Class.forName("eu.decentsoftware.holograms.api.DHAPI");
-            
-            // Remove existing hologram if it exists
-            if (activeHolograms.containsKey(playerUUID)) {
-                java.lang.reflect.Method removeHolo = dhApi.getMethod("removeHologram", String.class);
-                removeHolo.invoke(null, activeHolograms.get(playerUUID));
-            }
-            
-            // Create new hologram
-            org.bukkit.Location loc = player.getLocation().add(0, 2, 0);
-            java.util.List<String> lines = new java.util.ArrayList<>();
-            lines.add(colorize("&e&lTop 10 " + (allTime ? "All-Time" : "Current") + " Killstreaks"));
-            
-            java.util.List<java.util.Map.Entry<UUID, Integer>> entries;
-            if (allTime) {
-                entries = new java.util.ArrayList<>(bestKillStreaks.entrySet());
-            } else {
-                entries = new java.util.ArrayList<>(killStreaks.entrySet());
-            }
-            entries.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
-            
-            int rank = 1;
-            for (java.util.Map.Entry<UUID, Integer> entry : entries) {
-                if (rank > 10) break;
-                org.bukkit.OfflinePlayer p = org.bukkit.Bukkit.getOfflinePlayer(entry.getKey());
-                lines.add(colorize("&6" + rank + ". &e" + p.getName() + " &7- &b" + entry.getValue()));
-                rank++;
-            }
-            
-            // Create the hologram
+            java.lang.reflect.Method getHologram = dhApi.getMethod("getHologram", String.class);
             java.lang.reflect.Method createHolo = dhApi.getMethod("createHologram", String.class, org.bukkit.Location.class, java.util.List.class);
-            createHolo.invoke(null, holoName, loc, lines);
+            java.lang.reflect.Method updateHolo = dhApi.getMethod("setHologramLines", Object.class, java.util.List.class);
             
-            // Track the active hologram
-            activeHolograms.put(playerUUID, holoName);
+            // Prepare hologram content
+            java.util.List<String> lines = generateLeaderboardLines(allTime);
             
-            // Schedule hologram cleanup after 10 seconds
-            Bukkit.getScheduler().runTaskLater(this, () -> {
-                try {
-                    java.lang.reflect.Method removeHolo = dhApi.getMethod("removeHologram", String.class);
-                    removeHolo.invoke(null, holoName);
-                    activeHolograms.remove(playerUUID);
-                } catch (Exception e) {
-                    getLogger().warning("Failed to cleanup hologram: " + e.getMessage());
-                }
-            }, 200L); // 10 seconds
+            // Check if hologram already exists
+            Object existingHolo = getHologram.invoke(null, holoName);
+            
+            if (existingHolo != null) {
+                // Update existing hologram content
+                updateHolo.invoke(null, existingHolo, lines);
+            } else {
+                // Create new hologram at player's location (admin can move it later)
+                org.bukkit.Location loc = player.getLocation().add(0, 2, 0);
+                createHolo.invoke(null, holoName, loc, lines);
+                serverLeaderboards.put(holoName, loc);
+                player.sendMessage(colorize("&aLeaderboard hologram created! Use &e/killstreak removeboards &ato remove all leaderboards."));
+            }
             
         } catch (Exception e) {
-            player.sendMessage(colorize("&cFailed to create leaderboard hologram: " + e.getMessage()));
-            getLogger().warning("Hologram creation failed: " + e.getMessage());
+            player.sendMessage(colorize("&cFailed to create/update leaderboard hologram: " + e.getMessage()));
+            getLogger().warning("Hologram operation failed: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Generate leaderboard lines for hologram
+     */
+    private java.util.List<String> generateLeaderboardLines(boolean allTime) {
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        lines.add(colorize("&e&lTop 10 " + (allTime ? "All-Time" : "Current") + " Killstreaks"));
+        lines.add(colorize("&7&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+        
+        java.util.List<java.util.Map.Entry<UUID, Integer>> entries;
+        if (allTime) {
+            entries = new java.util.ArrayList<>(bestKillStreaks.entrySet());
+        } else {
+            entries = new java.util.ArrayList<>(killStreaks.entrySet());
+        }
+        entries.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
+        
+        int rank = 1;
+        boolean hasEntries = false;
+        
+        for (java.util.Map.Entry<UUID, Integer> entry : entries) {
+            if (rank > 10) break;
+            org.bukkit.OfflinePlayer p = org.bukkit.Bukkit.getOfflinePlayer(entry.getKey());
+            String playerName = p.getName() != null ? p.getName() : "Unknown";
+            lines.add(colorize("&6" + rank + ". &e" + playerName + " &7- &b" + entry.getValue()));
+            rank++;
+            hasEntries = true;
+        }
+        
+        if (!hasEntries) {
+            lines.add(colorize("&7No " + (allTime ? "records" : "active streaks") + " found"));
+        }
+        
+        lines.add(colorize("&7&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+        return lines;
+    }
+    
+    /**
+     * Remove all server leaderboard holograms
+     */
+    public void removeAllLeaderboards() {
+        if (serverLeaderboards.isEmpty()) {
+            return;
+        }
+        
+        try {
+            org.bukkit.plugin.Plugin dh = org.bukkit.Bukkit.getPluginManager().getPlugin("DecentHolograms");
+            if (dh != null) {
+                Class<?> dhApi = Class.forName("eu.decentsoftware.holograms.api.DHAPI");
+                java.lang.reflect.Method removeHolo = dhApi.getMethod("removeHologram", String.class);
+                
+                int removed = 0;
+                for (String holoName : serverLeaderboards.keySet()) {
+                    try {
+                        removeHolo.invoke(null, holoName);
+                        removed++;
+                    } catch (Exception e) {
+                        getLogger().warning("Failed to remove hologram " + holoName + ": " + e.getMessage());
+                    }
+                }
+                serverLeaderboards.clear();
+                getLogger().info("Removed " + removed + " leaderboard holograms");
+            }
+        } catch (Exception e) {
+            getLogger().warning("Failed to remove leaderboard holograms: " + e.getMessage());
         }
     }
 
@@ -399,24 +441,48 @@ public class KillStreakPlugin extends JavaPlugin implements Listener {
         return this.databaseManager;
     }
     
-    // Method to update leaderboards only when there are actual changes
+    // Method to update existing server leaderboard holograms
     private void updateLeaderboards() {
-        // Only update if there are players online and killstreaks exist
-        if (Bukkit.getOnlinePlayers().isEmpty() || (killStreaks.isEmpty() && bestKillStreaks.isEmpty())) {
+        // Only update if there are server leaderboards to update
+        if (serverLeaderboards.isEmpty()) {
             return;
         }
         
-        // Log the update for debugging (can be removed in production)
-        getLogger().fine("Updating leaderboards for " + Bukkit.getOnlinePlayers().size() + " online players");
-        
-        // Note: This now creates temporary holograms that auto-cleanup after 10 seconds
-        // Consider making this configurable or implementing a different display method
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            // Only show leaderboards if player has permission
-            if (player.hasPermission("killstreak.view")) {
-                showLeaderboard(player, false); // Current streaks
-                showLeaderboard(player, true);  // All-time best
+        try {
+            org.bukkit.plugin.Plugin dh = org.bukkit.Bukkit.getPluginManager().getPlugin("DecentHolograms");
+            if (dh == null) {
+                return;
             }
+            
+            Class<?> dhApi = Class.forName("eu.decentsoftware.holograms.api.DHAPI");
+            java.lang.reflect.Method getHologram = dhApi.getMethod("getHologram", String.class);
+            java.lang.reflect.Method updateHolo = dhApi.getMethod("setHologramLines", Object.class, java.util.List.class);
+            
+            int updated = 0;
+            for (String holoName : serverLeaderboards.keySet()) {
+                try {
+                    Object hologram = getHologram.invoke(null, holoName);
+                    if (hologram != null) {
+                        // Determine if this is an all-time or current leaderboard
+                        boolean isAllTime = holoName.contains("_alltime_");
+                        java.util.List<String> newLines = generateLeaderboardLines(isAllTime);
+                        updateHolo.invoke(null, hologram, newLines);
+                        updated++;
+                    } else {
+                        // Hologram no longer exists, remove from tracking
+                        serverLeaderboards.remove(holoName);
+                    }
+                } catch (Exception e) {
+                    getLogger().warning("Failed to update hologram " + holoName + ": " + e.getMessage());
+                }
+            }
+            
+            if (updated > 0) {
+                getLogger().fine("Updated " + updated + " leaderboard holograms");
+            }
+            
+        } catch (Exception e) {
+            getLogger().warning("Failed to update leaderboard holograms: " + e.getMessage());
         }
     }
 }

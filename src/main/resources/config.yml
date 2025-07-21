@@ -80,7 +80,7 @@ messages:
   player_not_found: "&cPlayer %player% not found!"
   config_reloaded: "&aConfig reloaded successfully!"
   streak_reset: "&aReset %player%'s kill streak!"
-  usage: "&eUsage: /killstreak reload | /killstreak reset <player> | /killstreak resetbest <player> | /killstreak gui | /killstreak leaderboard <current|alltime> | /killstreak placeholders"
+  usage: "&eUsage: /killstreak reload | reset <player> | resetbest <player> | gui | leaderboard <current|alltime> | removeboards | placeholders"
   gui_opened: "&aOpened reward configuration GUI!"
   leaderboard_current: "&aShowing current top 10 killstreaks!"
   leaderboard_alltime: "&aShowing all-time top 10 killstreaks!"
