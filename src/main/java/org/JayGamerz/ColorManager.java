@@ -1,130 +1,100 @@
 
 package org.JayGamerz;
 
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+
 public final class ColorManager {
+    
+    // Constants for better maintainability
+    private static final char COLOR_CHAR = '§';
+    
+    // Precompiled regex patterns for better performance
+    private static final Pattern HEX_PATTERN = Pattern.compile("&#([a-fA-F0-9]{6})");
+    private static final Pattern LEGACY_PATTERN = Pattern.compile("&([0-9a-fA-FklmnorKLMNOR])");
+    
     private ColorManager() {
         throw new UnsupportedOperationException("This class is not meant to be instantiated.");
     }
 
+    /**
+     * Translates color codes in the given text.
+     * Supports both legacy (&a, &b, etc.) and hex colors (&#ffffff).
+     * 
+     * @param textToTranslate The text to colorize
+     * @return The colorized text with § color codes
+     */
     public static String colorize(String textToTranslate) {
-        char altColorChar = '&';
-        StringBuilder b = new StringBuilder();
-        char[] mess = textToTranslate.toCharArray();
-        boolean color = false;
-        boolean hashtag = false;
-        boolean doubleTag = false;
-        int i = 0;
-
-        while(i < mess.length) {
-            char c = mess[i];
-            if (doubleTag) {
-                doubleTag = false;
-                int max = i + 3;
-                if (max <= mess.length) {
-                    boolean match = true;
-
-                    for(int n = i; n < max; ++n) {
-                        char tmp = mess[n];
-                        if ((tmp < '0' || tmp > '9') && (tmp < 'a' || tmp > 'f') && (tmp < 'A' || tmp > 'F')) {
-                            match = false;
-                            break;
-                        }
-                    }
-
-                    if (match) {
-                        b.append('§');
-                        b.append('x');
-
-                        while(i < max) {
-                            char tmp = mess[i];
-                            b.append('§');
-                            b.append(tmp);
-                            b.append('§');
-                            b.append(tmp);
-                            ++i;
-                        }
-                        continue;
-                    }
-                }
-
-                b.append('&');
-                b.append("##");
-            }
-
-            if (hashtag) {
-                hashtag = false;
-                if (c == '#') {
-                    doubleTag = true;
-                    ++i;
-                    continue;
-                }
-
-                int max = i + 6;
-                if (max <= mess.length) {
-                    boolean match = true;
-
-                    for(int n = i; n < max; ++n) {
-                        char tmp = mess[n];
-                        if ((tmp < '0' || tmp > '9') && (tmp < 'a' || tmp > 'f') && (tmp < 'A' || tmp > 'F')) {
-                            match = false;
-                            break;
-                        }
-                    }
-
-                    if (match) {
-                        b.append('§');
-                        b.append('x');
-
-                        while(i < max) {
-                            b.append('§');
-                            b.append(mess[i]);
-                            ++i;
-                        }
-                        continue;
-                    }
-                }
-
-                b.append('&');
-                b.append('#');
-            }
-
-            if (color) {
-                color = false;
-                if (c == '#') {
-                    hashtag = true;
-                    ++i;
-                    continue;
-                }
-
-                if (c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c == 'r' || c >= 'k' && c <= 'o' || c >= 'A' && c <= 'F' || c == 'R' || c >= 'K' && c <= 'O') {
-                    b.append('§');
-                    b.append(c);
-                    ++i;
-                    continue;
-                }
-
-                b.append('&');
-            }
-
-            if (c == '&') {
-                color = true;
-                ++i;
-            } else {
-                b.append(c);
-                ++i;
-            }
+        if (textToTranslate == null || textToTranslate.isEmpty()) {
+            return textToTranslate;
         }
-
-        if (color) {
-            b.append('&');
-        } else if (hashtag) {
-            b.append('&');
-            b.append('#');
-        } else if (doubleTag) {
-            b.append('&');
-            b.append("##");
+        
+        // Process hex colors first (&#ffffff format)
+        String result = processHexColors(textToTranslate);
+        
+        // Process legacy colors (&a, &b, etc.)
+        result = processLegacyColors(result);
+        
+        return result;
+    }
+    
+    /**
+     * Processes hex color codes in the format &#ffffff
+     */
+    private static String processHexColors(String text) {
+        if (!text.contains("&#")) {
+            return text;
         }
-
-        return b.toString();
+        
+        Matcher matcher = HEX_PATTERN.matcher(text);
+        StringBuilder result = new StringBuilder();
+        
+        while (matcher.find()) {
+            String hexCode = matcher.group(1);
+            StringBuilder replacement = new StringBuilder();
+            replacement.append(COLOR_CHAR).append('x');
+            
+            // Convert each hex digit to individual color codes
+            for (char c : hexCode.toCharArray()) {
+                replacement.append(COLOR_CHAR).append(c);
+            }
+            
+            matcher.appendReplacement(result, replacement.toString());
+        }
+        matcher.appendTail(result);
+        
+        return result.toString();
+    }
+    
+    /**
+     * Processes legacy color codes in the format &a, &b, etc.
+     */
+    private static String processLegacyColors(String text) {
+        if (!text.contains("&")) {
+            return text;
+        }
+        
+        Matcher matcher = LEGACY_PATTERN.matcher(text);
+        return matcher.replaceAll(COLOR_CHAR + "$1");
+    }
+    
+    /**
+     * Strips all color codes from the given text
+     * 
+     * @param text The text to strip colors from
+     * @return The text without color codes
+     */
+    public static String stripColors(String text) {
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+        
+        // Remove all § color codes
+        String result = text.replaceAll("§[0-9a-fA-FklmnorKLMNORx]", "");
+        
+        // Remove hex color patterns
+        result = result.replaceAll("§x(§[0-9a-fA-F]){6}", "");
+        
+        return result;
     }
 }
